@@ -1,0 +1,21 @@
+{
+    "name": "kieran/misc",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "Kieran\\Misc\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Kieran",
+            "email": "kieran@andersons.bz"
+        }
+    ],
+    "require": {
+        "php": "^8.0",
+        "guzzlehttp/guzzle": "^7.5",
+        "laravel/framework": "^9.19",
+        "ext-curl": "*"
+    }
+}
