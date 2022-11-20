@@ -1,6 +1,6 @@
 <?php
 
-namespace Kieran\Misc\Exceptions;
+namespace KieranFYI\Misc\Exceptions;
 
 use Exception;
 

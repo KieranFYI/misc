@@ -1,9 +1,9 @@
 <?php
 
-namespace Kieran\Misc\Traits;
+namespace KieranFYI\Misc\Traits;
 
 use Illuminate\Database\Eloquent\Model;
-use Kieran\Misc\Exceptions\ImmutableModelException;
+use KieranFYI\Misc\Exceptions\ImmutableModelException;
 
 /**
  * @mixin Model

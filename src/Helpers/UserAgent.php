@@ -1,6 +1,6 @@
 <?php
 
-namespace Kieran\Misc\Helpers;
+namespace KieranFYI\Misc\Helpers;
 
 use Exception;
 

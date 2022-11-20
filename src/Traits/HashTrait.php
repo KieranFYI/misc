@@ -1,6 +1,6 @@
 <?php
 
-namespace Kieran\Misc\Traits;
+namespace KieranFYI\Misc\Traits;
 
 use Exception;
 use Illuminate\Database\Eloquent\Model;
