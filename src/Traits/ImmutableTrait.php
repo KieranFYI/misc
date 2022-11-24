@@ -18,11 +18,11 @@ trait ImmutableTrait
      *
      * @return array<class-string, class-string>
      */
-    public function policies(): array
+    public function whitelist(): array
     {
         if (property_exists($this, 'whitelist')) {
             if (!is_array($this->whitelist)) {
-                throw new TypeError('Invalid Type on "whitelist", array expected');
+                throw new TypeError(self::class.'::whitelist(): Property ($whitelist) must be of type array');
             }
 
             return $this->whitelist;
@@ -37,7 +37,7 @@ trait ImmutableTrait
      */
     public function __set($key, $value)
     {
-        if ($this->exists && !in_array($key, $this->whitelist)) {
+        if ($this->exists && !in_array($key, $this->whitelist())) {
             throw new ImmutableModelException();
         }
 
