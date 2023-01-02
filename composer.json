@@ -1,6 +1,7 @@
 {
     "name": "kieranfyi/misc",
     "type": "project",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "KieranFYI\\Misc\\": "src/"
