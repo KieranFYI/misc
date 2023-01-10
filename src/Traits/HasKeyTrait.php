@@ -10,7 +10,18 @@ use Illuminate\Support\Str;
  */
 trait HasKeyTrait
 {
-    protected static function bootHasKeyTrait()
+    /**
+     * @return void
+     */
+    public function initializeHasKeyTrait(): void
+    {
+        array_push($this->fillable, 'key');
+    }
+
+    /**
+     * @return void
+     */
+    protected static function bootHasKeyTrait(): void
     {
         static::creating(function ($model) {
             $model->key = (string)Str::uuid();
