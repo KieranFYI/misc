@@ -26,6 +26,17 @@ class CacheableMiddleware
     }
 
     /**
+     * @return bool
+     */
+    public static function check(): bool
+    {
+        $response = response()
+            ->make()
+            ->setCache(self::$options);
+        return $response->isNotModified(Request::createFromGlobals());
+    }
+
+    /**
      * Handle an incoming request.
      *
      * @param Request $request
@@ -43,8 +54,10 @@ class CacheableMiddleware
 
             return $response;
         } catch (CacheableException) {
+
         }
-        $response = response()->setCache(self::$options);
+        $response = response()
+            ->setCache(self::$options);
         $response->isNotModified($request);
 
         return $response;

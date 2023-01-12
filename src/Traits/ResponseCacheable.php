@@ -13,7 +13,7 @@ trait ResponseCacheable
      * @throws CacheableException
      */
     private function check() {
-        if (Request::method() === 'HEAD') {
+        if (CacheableMiddleware::check()) {
             throw new CacheableException();
         }
     }
@@ -48,7 +48,7 @@ trait ResponseCacheable
      */
     public function setLastModified(?DateTimeInterface $value): void
     {
-        $this->cache('last_modified', $value)->public()->check();
+        $this->cache('last_modified', $value)->check();
     }
 
     /**
