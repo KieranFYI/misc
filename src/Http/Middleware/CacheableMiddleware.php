@@ -50,7 +50,7 @@ class CacheableMiddleware
             $response = $next($request);
 
             $response->setCache(self::$options);
-            $response->isNotModified($request);
+            $this->debugBar($response->isNotModified($request));
 
             return $response;
         } catch (CacheableException) {
@@ -58,8 +58,22 @@ class CacheableMiddleware
         }
         $response = response()
             ->setCache(self::$options);
-        $response->isNotModified($request);
+        $this->debugBar($response->isNotModified($request));
 
         return $response;
+    }
+
+    /**
+     * @param bool $modified
+     *
+     * @return void
+     */
+    private function debugBar(bool $modified): void
+    {
+        $debugBar = app('Barryvdh\Debugbar\LaravelDebugbar');
+        if (!is_null($debugBar)) {
+            $debugBar->info(self::$options);
+            $debugBar->info('Modified: ' . $modified);
+        }
     }
 }
