@@ -1,0 +1,52 @@
+<?php
+
+namespace KieranFYI\Misc\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use KieranFYI\Misc\Exceptions\CacheableException;
+
+class CacheableMiddleware
+{
+
+    /**
+     * @var array
+     */
+    private static array $options = [];
+
+    /**
+     * @param string $type
+     * @param string $value
+     */
+    public static function set(string $type, mixed $value)
+    {
+        self::$options[$type] = $value;
+    }
+
+    /**
+     * Handle an incoming request.
+     *
+     * @param Request $request
+     * @param Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
+     * @param string|null ...$guards
+     * @return Response|RedirectResponse
+     */
+    public function handle(Request $request, Closure $next, ...$guards)
+    {
+        try {
+            $response = $next($request);
+
+            $response->setCache(self::$options);
+            $response->isNotModified($request);
+
+            return $response;
+        } catch (CacheableException) {
+        }
+        $response = response()->setCache(self::$options);
+        $response->isNotModified($request);
+
+        return $response;
+    }
+}
