@@ -21,7 +21,7 @@ trait ResponseCacheable
     private function check()
     {
         Debugbar::stopMeasure('CacheableMiddleware');
-        if (CacheableMiddleware::check()) {
+        if (!config('misc.cache') && CacheableMiddleware::check()) {
             throw new CacheableException();
         }
     }

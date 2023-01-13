@@ -17,8 +17,16 @@ class MiscPackageServiceProvider extends ServiceProvider
      */
     public function boot(Router $router)
     {
+        $root = __DIR__ . '/../..';
+
         $router->aliasMiddleware('cacheable', CacheableMiddleware::class);
 
         $this->app->bind('misc-debugbar', DebugBar::class);
+
+        $this->publishes([
+            $root . '/config/misc.php' => config_path('misc.php'),
+        ], ['misc', 'misc-config']);
+
+        $this->mergeConfigFrom($root . '/config/misc.php', 'misc');
     }
 }

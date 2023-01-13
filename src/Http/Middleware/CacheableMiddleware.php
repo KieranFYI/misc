@@ -5,6 +5,7 @@ namespace KieranFYI\Misc\Http\Middleware;
 use Carbon\Carbon;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphPivot;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -69,12 +70,16 @@ class CacheableMiddleware
             });
 
             if (is_null($response)) {
-                $response = response()
-                    ->setCache(self::$options);
+                $response = response();
+            }
+            if (!config('misc.cache')) {
+                $response->setCache(self::$options);
             }
 
-            $this->user($response);
-            $this->view($response);
+            if (config('misc.cache')) {
+                $this->user($response);
+                $this->view($response);
+            }
 
             Debugbar::info('Response Modified: ' . ($response->isNotModified($request) ? 'Yes' : 'No'));
 
@@ -87,16 +92,39 @@ class CacheableMiddleware
      */
     private function user(SymfomyResponse $response): void
     {
-        if (!is_a(Auth::user(), Model::class, true)) {
+        $user = Auth::user();
+        if (!is_a($user, Model::class, true)) {
             return;
         }
 
-        if (!isset(Auth::user()->updated_at)) {
-            return;
+        /** @var Carbon $updatedAt */
+        $updatedAt = $user->updated_at ?? null;
+
+        if (method_exists($user, 'load')) {
+            if (!$user->relationLoaded('roles')) {
+                $user->load('roles');
+            }
+            if ($user->relationLoaded('roles')) {
+                $roleUpdatedAt = $user->roles->max('pivot.updated_at');
+                if (is_null($updatedAt) || $updatedAt->lessThan($roleUpdatedAt)) {
+                    Debugbar::debug('Using Role updated_at: ' . $roleUpdatedAt);
+                    $updatedAt = $roleUpdatedAt;
+                }
+
+//                $permissionUpdateAt = $user->roles
+//                    ->pluck('permissions')
+//                    ->flatten()
+//                    ->pluck('pivot.updated_at')
+//                    ->max();
+//                if (is_null($updatedAt) || $updatedAt->lessThan($permissionUpdateAt)) {
+//                    Debugbar::debug('Using Permission updated_at: ' . $permissionUpdateAt);
+//                    $updatedAt = $permissionUpdateAt;
+//                }
+            }
         }
 
-        Debugbar::debug('User Last Modified: ' . Auth::user()->updated_at);
-        $options = ['last_modified' => Auth::user()->updated_at];
+        Debugbar::debug('User Last Modified: ' . $updatedAt);
+        $options = ['last_modified' => $updatedAt];
         if (!self::check($options)) {
             return;
         }
