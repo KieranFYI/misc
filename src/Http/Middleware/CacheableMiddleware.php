@@ -60,26 +60,26 @@ class CacheableMiddleware
      */
     public function handle(Request $request, Closure $next, ...$guards)
     {
-        Debugbar::startMeasure('CacheableMiddleware');
+        return Debugbar::measure('CacheableMiddleware', function () use ($request, $next) {
+            $response = Debugbar::measure('CacheableMiddleware::$next', function () use ($request, $next) {
+                try {
+                    return $next($request);
+                } catch (CacheableException) {
+                }
+            });
 
-        $response = null;
-        try {
-            $response = $next($request);
-        } catch (CacheableException) {
-            Debugbar::stopMeasure('CacheableMiddleware');
-        }
+            if (is_null($response)) {
+                $response = response()
+                    ->setCache(self::$options);
+            }
 
-        if (is_null($response)) {
-            $response = response()
-                ->setCache(self::$options);
-        }
+            $this->user($response);
+            $this->view($response);
 
-        $this->user($response);
-        $this->view($response);
+            Debugbar::info('Response Modified: ' . ($response->isNotModified($request) ? 'Yes' : 'No'));
 
-        Debugbar::info('Response Modified: ' . ($response->isNotModified($request) ? 'Yes' : 'No'));
-
-        return $response;
+            return $response;
+        });
     }
 
     /**
