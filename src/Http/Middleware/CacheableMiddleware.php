@@ -114,7 +114,10 @@ class CacheableMiddleware
                 });
             }));
 
-            app('misc-debugbar')->debug('View Last Modified: ' . $fileTime);
+
+            if (!isset(self::$options['cache'])) {
+                app('misc-debugbar')->debug('View last modified: ' . $fileTime);
+            }
             $options = ['last_modified' => $fileTime];
 
             if (!isset(self::$options['cache'])) {
@@ -122,7 +125,7 @@ class CacheableMiddleware
                     return;
                 }
 
-                app('misc-debugbar')->debug('Using view last modified');
+                app('misc-debugbar')->debug('Using View last modified');
             }
 
             $response->setCache($options);

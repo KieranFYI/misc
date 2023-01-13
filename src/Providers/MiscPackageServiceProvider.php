@@ -42,8 +42,6 @@ class MiscPackageServiceProvider extends ServiceProvider
 
                 /** @var Carbon $updatedAt */
                 $updatedAt = $user->updated_at ?? null;
-                app('misc-debugbar')->debug('User updated_at: ' . $updatedAt);
-
                 app('misc-debugbar')->debug('User last modified: ' . $updatedAt);
                 $options = ['last_modified' => $updatedAt];
                 if (!CacheableMiddleware::check($options)) {
