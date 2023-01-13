@@ -4,6 +4,7 @@ namespace KieranFYI\Misc\Traits;
 
 use Carbon\Carbon;
 use DateTimeInterface;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\View;
@@ -115,15 +116,14 @@ trait ResponseCacheable
     }
 
     /**
-     * @param Carbon|null $value
      * @throws CacheableException
+     * @throws BindingResolutionException
      */
-    public function view(?Carbon $value = null): void
+    public function view(): void
     {
-        if (is_null($value)) {
-            return;
-        }
-        $this->setLastModified($value);
+        $this->cache('cache', true);
+        CacheableMiddleware::cacheView(response()->make());
+        $this->check();
     }
 
 

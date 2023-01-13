@@ -4,8 +4,8 @@ namespace KieranFYI\Misc\Http\Middleware;
 
 use Carbon\Carbon;
 use Closure;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\MorphPivot;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -38,7 +38,9 @@ class CacheableMiddleware
     }
 
     /**
+     * @param array|null $options
      * @return bool
+     * @throws BindingResolutionException
      */
     public static function check(array $options = null): bool
     {
@@ -72,13 +74,16 @@ class CacheableMiddleware
             if (is_null($response)) {
                 $response = response();
             }
-            if (!config('misc.cache')) {
-                $response->setCache(self::$options);
+
+            if (config('misc.cache')) {
+                $options = self::$options;
+                unset($options['cache']);
+                $response->setCache($options);
             }
 
             if (config('misc.cache')) {
                 $this->user($response);
-                $this->view($response);
+                self::cacheView($response);
             }
 
             Debugbar::info('Response Modified: ' . ($response->isNotModified($request) ? 'Yes' : 'No'));
@@ -89,6 +94,7 @@ class CacheableMiddleware
 
     /**
      * @param SymfomyResponse $response
+     * @throws BindingResolutionException
      */
     private function user(SymfomyResponse $response): void
     {
@@ -136,25 +142,30 @@ class CacheableMiddleware
     /**
      * @param SymfomyResponse $response
      */
-    private function view(SymfomyResponse $response): void
+    public static function cacheView(SymfomyResponse $response): void
     {
         Debugbar::measure('CacheMiddleware::view', function () use ($response) {
-            $fileTime = Carbon::createFromTimestamp(Cache::remember(static::class, 10, function () {
-                Debugbar::debug('Building');
-                return $this->bladeFilesIn($this->paths())
-                    ->map(function (SplFileInfo $fileInfo) {
-                        return $fileInfo->getMTime();
-                    })
-                    ->max();
+            $fileTime = Carbon::createFromTimestamp(Cache::remember(self::class, 10, function () {
+                return Debugbar::measure('Getting File Time', function () {
+                    return self::bladeFilesIn(self::paths())
+                        ->map(function (SplFileInfo $fileInfo) {
+                            return $fileInfo->getMTime();
+                        })
+                        ->max();
+                });
             }));
 
             Debugbar::debug('View Last Modified: ' . $fileTime);
             $options = ['last_modified' => $fileTime];
-            if (!self::check($options)) {
-                return;
+
+            if (!isset(self::$options['cache'])) {
+                if (!self::check($options)) {
+                    return;
+                }
+
+                Debugbar::debug('Using view last modified');
             }
 
-            Debugbar::debug('Using view last modified');
             $response->setCache($options);
         });
     }
@@ -166,7 +177,7 @@ class CacheableMiddleware
      * @param array $paths
      * @return Collection
      */
-    protected function bladeFilesIn(array $paths): Collection
+    protected static function bladeFilesIn(array $paths): Collection
     {
         return collect(
             Finder::create()
@@ -186,7 +197,7 @@ class CacheableMiddleware
      *
      * @return array
      */
-    protected function paths(): array
+    protected static function paths(): array
     {
         $finder = View::getFinder();
 
