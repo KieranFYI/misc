@@ -21,11 +21,12 @@ use Symfony\Component\HttpFoundation\Response as SymfomyResponse;
 
 class CacheableMiddleware
 {
-
     /**
      * @var array
      */
     private static array $options = [];
+
+    private static array $callables = [];
 
     /**
      * @param string $type
@@ -34,7 +35,13 @@ class CacheableMiddleware
     public static function set(string $type, mixed $value)
     {
         self::$options[$type] = $value;
-        Debugbar::debug($type . ': ' . $value);
+        if ($type !== 'cache') {
+            app('misc-debugbar')->debug($type . ': ' . $value);
+        }
+    }
+
+    public static function checking(callable $callable) {
+        static::$callables[] = $callable;
     }
 
     /**
@@ -63,14 +70,14 @@ class CacheableMiddleware
      */
     public function handle(Request $request, Closure $next, ...$guards)
     {
-        return Debugbar::measure('CacheableMiddleware', function () use ($request, $next) {
-            $response = Debugbar::measure('CacheableMiddleware::$next', function () use ($request, $next) {
-                try {
-                    return $next($request);
-                } catch (CacheableException) {
-                }
-            });
 
+        $response = null;
+        try {
+            $response = $next($request);
+        } catch (CacheableException) {
+        }
+
+        return app('misc-debugbar')->measure('CacheableMiddleware', function () use ($request, $next, $response) {
             if (is_null($response)) {
                 $response = response();
             }
@@ -79,14 +86,13 @@ class CacheableMiddleware
                 $options = self::$options;
                 unset($options['cache']);
                 $response->setCache($options);
+
+                foreach (static::$callables as $callable) {
+                    $callable($response);
+                }
             }
 
-            if (config('misc.cache')) {
-                $this->user($response);
-                self::cacheView($response);
-            }
-
-            Debugbar::info('Response Modified: ' . ($response->isNotModified($request) ? 'Yes' : 'No'));
+            app('misc-debugbar')->info('Response Modified: ' . ($response->isNotModified($request) ? 'Yes' : 'No'));
 
             return $response;
         });
@@ -94,59 +100,12 @@ class CacheableMiddleware
 
     /**
      * @param SymfomyResponse $response
-     * @throws BindingResolutionException
-     */
-    private function user(SymfomyResponse $response): void
-    {
-        $user = Auth::user();
-        if (!is_a($user, Model::class, true)) {
-            return;
-        }
-
-        /** @var Carbon $updatedAt */
-        $updatedAt = $user->updated_at ?? null;
-
-        if (method_exists($user, 'load')) {
-            if (!$user->relationLoaded('roles')) {
-                $user->load('roles');
-            }
-            if ($user->relationLoaded('roles')) {
-                $roleUpdatedAt = $user->roles->max('pivot.updated_at');
-                if (is_null($updatedAt) || $updatedAt->lessThan($roleUpdatedAt)) {
-                    Debugbar::debug('Using Role updated_at: ' . $roleUpdatedAt);
-                    $updatedAt = $roleUpdatedAt;
-                }
-
-//                $permissionUpdateAt = $user->roles
-//                    ->pluck('permissions')
-//                    ->flatten()
-//                    ->pluck('pivot.updated_at')
-//                    ->max();
-//                if (is_null($updatedAt) || $updatedAt->lessThan($permissionUpdateAt)) {
-//                    Debugbar::debug('Using Permission updated_at: ' . $permissionUpdateAt);
-//                    $updatedAt = $permissionUpdateAt;
-//                }
-            }
-        }
-
-        Debugbar::debug('User Last Modified: ' . $updatedAt);
-        $options = ['last_modified' => $updatedAt];
-        if (!self::check($options)) {
-            return;
-        }
-
-        Debugbar::debug('Using user last modified');
-        $response->setCache($options);
-    }
-
-    /**
-     * @param SymfomyResponse $response
      */
     public static function cacheView(SymfomyResponse $response): void
     {
-        Debugbar::measure('CacheMiddleware::view', function () use ($response) {
+        app('misc-debugbar')->measure('CacheMiddleware::view', function () use ($response) {
             $fileTime = Carbon::createFromTimestamp(Cache::remember(self::class, 10, function () {
-                return Debugbar::measure('Getting File Time', function () {
+                return app('misc-debugbar')->measure('Getting File Time', function () {
                     return self::bladeFilesIn(self::paths())
                         ->map(function (SplFileInfo $fileInfo) {
                             return $fileInfo->getMTime();
@@ -155,7 +114,7 @@ class CacheableMiddleware
                 });
             }));
 
-            Debugbar::debug('View Last Modified: ' . $fileTime);
+            app('misc-debugbar')->debug('View Last Modified: ' . $fileTime);
             $options = ['last_modified' => $fileTime];
 
             if (!isset(self::$options['cache'])) {
@@ -163,7 +122,7 @@ class CacheableMiddleware
                     return;
                 }
 
-                Debugbar::debug('Using view last modified');
+                app('misc-debugbar')->debug('Using view last modified');
             }
 
             $response->setCache($options);

@@ -88,7 +88,6 @@ class DebugBar extends ServiceProvider
             return;
         }
 
-
         try {
             return $instance->__call($name, $arguments);
         } catch (Exception) {
