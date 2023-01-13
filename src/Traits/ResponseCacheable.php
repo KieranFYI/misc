@@ -2,17 +2,25 @@
 
 namespace KieranFYI\Misc\Traits;
 
+use Carbon\Carbon;
 use DateTimeInterface;
-use Illuminate\Support\Facades\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\View;
 use KieranFYI\Misc\Exceptions\CacheableException;
+use KieranFYI\Misc\Facades\Debugbar;
 use KieranFYI\Misc\Http\Middleware\CacheableMiddleware;
+use Symfony\Component\Finder\Finder;
+use Symfony\Component\Finder\SplFileInfo;
 
 trait ResponseCacheable
 {
     /**
      * @throws CacheableException
      */
-    private function check() {
+    private function check()
+    {
+        Debugbar::stopMeasure('CacheableMiddleware');
         if (CacheableMiddleware::check()) {
             throw new CacheableException();
         }
@@ -31,9 +39,9 @@ trait ResponseCacheable
 
     /**
      * @param string $value
+     * @return void
      * @throws CacheableException
      *
-     * @return void
      */
     public function setEtag(string $value): void
     {
@@ -41,21 +49,20 @@ trait ResponseCacheable
     }
 
     /**
-     * @param string $value
-     * @throws CacheableException
-     *
+     * @param Carbon $carbon
      * @return void
+     * @throws CacheableException
      */
-    public function setLastModified(?DateTimeInterface $value): void
+    public function setLastModified(Carbon $carbon): void
     {
-        $this->cache('last_modified', $value)->check();
+        $this->cache('last_modified', $carbon)->check();
     }
 
     /**
      * @param string $value
+     * @return void
      * @throws CacheableException
      *
-     * @return void
      */
     public function setMaxAge(mixed $value): void
     {
@@ -64,9 +71,9 @@ trait ResponseCacheable
 
     /**
      * @param string $value
+     * @return void
      * @throws CacheableException
      *
-     * @return void
      */
     public function setSharedMaxAge(mixed $value): void
     {
@@ -79,8 +86,7 @@ trait ResponseCacheable
      */
     public function setStaleWhileRevalidate(bool $value): static
     {
-        $this->cache('stale_while_revalidate', $value);
-        return $this;
+        return $this->cache('stale_while_revalidate', $value);
     }
 
     /**
@@ -89,8 +95,7 @@ trait ResponseCacheable
      */
     public function setStaleIfError(bool $value): static
     {
-        $this->cache('stale_if_error', $value);
-        return $this;
+        return $this->cache('stale_if_error', $value);
     }
 
     /**
@@ -98,8 +103,7 @@ trait ResponseCacheable
      */
     public function public(): static
     {
-        $this->cache('public', true);
-        return $this;
+        return $this->cache('public', true);
     }
 
     /**
@@ -107,8 +111,20 @@ trait ResponseCacheable
      */
     public function private(): static
     {
-        $this->cache('private', true);
-        return $this;
+        return $this->cache('private', true);
     }
+
+    /**
+     * @param Carbon|null $value
+     * @throws CacheableException
+     */
+    public function view(?Carbon $value = null): void
+    {
+        if (is_null($value)) {
+            return;
+        }
+        $this->setLastModified($value);
+    }
+
 
 }
