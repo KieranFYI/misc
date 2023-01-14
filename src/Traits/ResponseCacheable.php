@@ -3,9 +3,7 @@
 namespace KieranFYI\Misc\Traits;
 
 use Carbon\Carbon;
-use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Http\Request;
-use KieranFYI\Misc\Exceptions\CacheableException;
 use KieranFYI\Misc\Http\Middleware\CacheableMiddleware;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -13,8 +11,6 @@ use Throwable;
 trait ResponseCacheable
 {
     /**
-     * @throws CacheableException
-     * @throws BindingResolutionException
      * @throws Throwable
      */
     private function cached(Carbon $value = null, bool $throw = true): bool

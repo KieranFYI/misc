@@ -24,7 +24,7 @@ use Symfony\Component\HttpFoundation\Response as SymfomyResponse;
 class CacheableMiddleware
 {
     /**
-     * @var ?array
+     * @var ?DateTimeInterface
      */
     public static ?DateTimeInterface $timestamp = null;
 
