@@ -4,7 +4,10 @@ namespace KieranFYI\Misc\Http\Middleware;
 
 use Carbon\Carbon;
 use Closure;
+use DateTimeInterface;
+use Exception;
 use Illuminate\Contracts\Container\BindingResolutionException;
+use Illuminate\Contracts\Routing\UrlRoutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,8 +16,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\View;
-use KieranFYI\Misc\Exceptions\CacheableException;
-use KieranFYI\Misc\Facades\Debugbar;
+use ReflectionParameter;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 use Symfony\Component\HttpFoundation\Response as SymfomyResponse;
@@ -22,38 +24,37 @@ use Symfony\Component\HttpFoundation\Response as SymfomyResponse;
 class CacheableMiddleware
 {
     /**
+     * @var ?array
+     */
+    public static ?DateTimeInterface $timestamp = null;
+
+    /**
      * @var array
      */
-    private static array $options = [];
-
     private static array $callables = [];
 
     /**
-     * @param string $type
-     * @param string $value
+     * @return array
      */
-    public static function set(string $type, mixed $value)
+    public static function callables(): array
     {
-        self::$options[$type] = $value;
-        if ($type !== 'cache') {
-            app('misc-debugbar')->debug($type . ': ' . $value);
-        }
+        return static::$callables;
     }
 
+    /**
+     * @param callable $callable
+     */
     public static function checking(callable $callable) {
         static::$callables[] = $callable;
     }
 
     /**
-     * @param array|null $options
+     * @param array $options
      * @return bool
      * @throws BindingResolutionException
      */
-    public static function check(array $options = null): bool
+    public static function check(array $options): bool
     {
-        if (is_null($options)) {
-            $options = self::$options;
-        }
         $response = response()
             ->make()
             ->setCache($options);
@@ -70,32 +71,41 @@ class CacheableMiddleware
      */
     public function handle(Request $request, Closure $next, ...$guards)
     {
+        /** @var SymfomyResponse $response */
+        $response = $next($request);
 
-        $response = null;
-        try {
-            $response = $next($request);
-        } catch (CacheableException) {
-        }
-
-        return app('misc-debugbar')->measure('CacheableMiddleware', function () use ($request, $next, $response) {
-            if (is_null($response)) {
-                $response = response();
-            }
-
-            if (config('misc.cache')) {
-                $options = self::$options;
-                unset($options['cache']);
-                $response->setCache($options);
-
-                foreach (static::$callables as $callable) {
-                    $callable($response);
-                }
-            }
+        if (
+            is_a($response, SymfomyResponse::class)
+            && config('misc.cache')
+            && !is_null(static::$timestamp)
+        ) {
+            app('misc-debugbar')->notice('Setting last modified: ' . static::$timestamp->format('Y-m-d H:i:s'));
+            $response->setCache(['last_modified' => static::$timestamp]);
 
             app('misc-debugbar')->info('Response Modified: ' . ($response->isNotModified($request) ? 'Yes' : 'No'));
+            if ($response->getStatusCode() === 304 && $response->isNotModified($request)) {
+                $response = response()->make()->setCache(['last_modified' => static::$timestamp]);
+            }
+        }
+        return $response;
+    }
 
-            return $response;
-        });
+    /**
+     * @param SymfomyResponse $response
+     * @throws BindingResolutionException
+     */
+    public static function user(SymfomyResponse $response): void
+    {
+        $user = Auth::user();
+        if (!is_a($user, Model::class, true)) {
+            return;
+        }
+
+        /** @var Carbon $updatedAt */
+        $updatedAt = $user->updated_at ?? null;
+        app('misc-debugbar')->debug('User last modified: ' . $updatedAt);
+        $options = ['last_modified' => $updatedAt];
+        $response->setCache($options);
     }
 
     /**
@@ -119,19 +129,54 @@ class CacheableMiddleware
                 app('misc-debugbar')->debug('View last modified: ' . $fileTime);
             }
             $options = ['last_modified' => $fileTime];
-
-            if (!isset(self::$options['cache'])) {
-                if (!self::check($options)) {
-                    return;
-                }
-
-                app('misc-debugbar')->debug('Using View last modified');
-            }
-
             $response->setCache($options);
         });
     }
 
+
+    /**
+     * @param SymfomyResponse $response
+     */
+    public static function params(SymfomyResponse $response): void
+    {
+        $params = collect(request()->route()->signatureParameters(UrlRoutable::class));
+        $classes = [];
+
+        $controllerMiddleware = request()->route()->controllerMiddleware();
+        foreach ($controllerMiddleware as $middleware) {
+            if(!str_starts_with($middleware, 'can:')) {
+                continue;
+            }
+            $class = substr($middleware, strrpos($middleware, ',') + 1);
+            if (!class_exists($class)) {
+                continue;
+            }
+            $classes[] = $class;
+        }
+
+        foreach ($params as $param) {
+            $class = '\\' . $param->getType()->getName();
+            if (!class_exists($class)) {
+                continue;
+            }
+
+            $classes[] = $class;
+        }
+
+        /** @var ReflectionParameter $param */
+        foreach ($classes as $class) {
+            if (!class_exists($class)) {
+                continue;
+            }
+            $model = new $class;
+            $updatedAt = Carbon::parse($model->max('updated_at'));
+
+            app('misc-debugbar')->debug($class . ' last modified: ' . $updatedAt);
+            $options = ['last_modified' => $updatedAt];
+            $response->setCache($options);
+            break;
+        }
+    }
 
     /**
      * Get the Blade files in the given path.

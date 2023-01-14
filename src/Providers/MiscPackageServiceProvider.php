@@ -35,25 +35,9 @@ class MiscPackageServiceProvider extends ServiceProvider
 
         if (!app()->runningInConsole()) {
             CacheableMiddleware::checking(function (Response $response) {
-                $user = Auth::user();
-                if (!is_a($user, Model::class, true)) {
-                    return;
-                }
-
-                /** @var Carbon $updatedAt */
-                $updatedAt = $user->updated_at ?? null;
-                app('misc-debugbar')->debug('User last modified: ' . $updatedAt);
-                $options = ['last_modified' => $updatedAt];
-                if (!CacheableMiddleware::check($options)) {
-                    return;
-                }
-
-                app('misc-debugbar')->debug('Using user last modified');
-                $response->setCache($options);
-            });
-
-            CacheableMiddleware::checking(function (Response $response) {
+                CacheableMiddleware::user($response);
                 CacheableMiddleware::cacheView($response);
+                CacheableMiddleware::params($response);
             });
         }
     }
