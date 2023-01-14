@@ -5,7 +5,6 @@ namespace KieranFYI\Misc\Http\Middleware;
 use Carbon\Carbon;
 use Closure;
 use DateTimeInterface;
-use Exception;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Routing\UrlRoutable;
 use Illuminate\Database\Eloquent\Model;
@@ -44,7 +43,8 @@ class CacheableMiddleware
     /**
      * @param callable $callable
      */
-    public static function checking(callable $callable) {
+    public static function checking(callable $callable)
+    {
         static::$callables[] = $callable;
     }
 
@@ -73,6 +73,8 @@ class CacheableMiddleware
     {
         /** @var SymfomyResponse $response */
         $response = $next($request);
+
+        app('misc-debugbar')->info('Cache: ' . (config('misc.cache') ? 'Enabled' : 'Disabled'));
 
         if (
             is_a($response, SymfomyResponse::class)
@@ -139,28 +141,32 @@ class CacheableMiddleware
      */
     public static function params(SymfomyResponse $response): void
     {
-        $params = collect(request()->route()->signatureParameters(UrlRoutable::class));
         $classes = [];
 
-        $controllerMiddleware = request()->route()->controllerMiddleware();
-        foreach ($controllerMiddleware as $middleware) {
-            if(!str_starts_with($middleware, 'can:')) {
-                continue;
-            }
-            $class = substr($middleware, strrpos($middleware, ',') + 1);
-            if (!class_exists($class)) {
-                continue;
-            }
-            $classes[] = $class;
-        }
-
-        foreach ($params as $param) {
+        $routeParams = request()->route()->signatureParameters(UrlRoutable::class);
+        foreach ($routeParams as $param) {
             $class = '\\' . $param->getType()->getName();
             if (!class_exists($class)) {
                 continue;
             }
 
             $classes[] = $class;
+        }
+
+        if (empty($classes)) {
+            app('misc-debugbar')->notice('No parameters found, checking middleware');
+
+            $controllerMiddleware = request()->route()->controllerMiddleware();
+            foreach ($controllerMiddleware as $middleware) {
+                if (!str_starts_with($middleware, 'can:')) {
+                    continue;
+                }
+                $class = substr($middleware, strrpos($middleware, ',') + 1);
+                if (!class_exists($class)) {
+                    continue;
+                }
+                $classes[] = $class;
+            }
         }
 
         /** @var ReflectionParameter $param */
@@ -186,9 +192,18 @@ class CacheableMiddleware
      */
     protected static function bladeFilesIn(array $paths): Collection
     {
+        $cleanPaths = [];
+
+        foreach ($paths as $path) {
+            if (!file_exists($path)) {
+                continue;
+            }
+            $cleanPaths[] = $path;
+        }
+
         return collect(
             Finder::create()
-                ->in($paths)
+                ->in($cleanPaths)
                 ->exclude('vendor')
                 ->name('*.blade.php')
                 ->files()
@@ -196,7 +211,8 @@ class CacheableMiddleware
             Finder::create()
                 ->in(base_path('vendor/composer'))
                 ->name('autoload_*.php')
-                ->files()));
+                ->files()
+        ));
     }
 
     /**
