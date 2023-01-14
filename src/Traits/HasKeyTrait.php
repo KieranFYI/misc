@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 /**
+ * @property string $key
+ * 
  * @mixin Model
  */
 trait HasKeyTrait
