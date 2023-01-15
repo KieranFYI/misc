@@ -2,9 +2,7 @@
 
 namespace KieranFYI\Misc\Providers;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Routing\Router;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
 use KieranFYI\Admin\Services\AdminService;
 use KieranFYI\Misc\Http\Middleware\CacheableMiddleware;

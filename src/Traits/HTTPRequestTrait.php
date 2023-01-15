@@ -27,6 +27,7 @@ trait HTTPRequestTrait
 
     /**
      * @param string $userAgent
+     * @return HTTPRequestTrait
      */
     public function userAgent(string $userAgent): static
     {
@@ -36,10 +37,21 @@ trait HTTPRequestTrait
 
     /**
      * @param int $timeout
+     * @return HTTPRequestTrait
      */
     public function timeout(int $timeout): static
     {
         $this->timeout = $timeout;
+        return $this;
+    }
+
+    /**
+     * @param string $auth
+     * @return HTTPRequestTrait
+     */
+    public function auth(string $auth): static
+    {
+        $this->auth = $auth;
         return $this;
     }
 
@@ -62,7 +74,7 @@ trait HTTPRequestTrait
             'accept-encoding' => 'gzip, deflate',
         ];
 
-        if (is_null($this->userAgent)) {
+        if (!empty($this->userAgent)) {
             $headers['User-Agent'] = $this->userAgent;
         }
 
