@@ -15,7 +15,7 @@ trait ResponseCacheable
      */
     private function cached(Carbon $value = null, bool $throw = true): bool
     {
-        if (!config('misc.cache')) {
+        if (!config('misc.cache.enabled')) {
             return false;
         }
 

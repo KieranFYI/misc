@@ -74,11 +74,11 @@ class CacheableMiddleware
         /** @var SymfomyResponse $response */
         $response = $next($request);
 
-        app('misc-debugbar')->info('Cache: ' . (config('misc.cache') ? 'Enabled' : 'Disabled'));
+        app('misc-debugbar')->info('Cache: ' . (config('misc.cache.enabled') ? 'Enabled' : 'Disabled'));
 
         if (
             is_a($response, SymfomyResponse::class)
-            && config('misc.cache')
+            && config('misc.cache.enabled')
             && !is_null(static::$timestamp)
         ) {
             app('misc-debugbar')->notice('Setting last modified: ' . static::$timestamp->format('Y-m-d H:i:s'));
@@ -116,7 +116,7 @@ class CacheableMiddleware
     public static function cacheView(SymfomyResponse $response): void
     {
         app('misc-debugbar')->measure('CacheMiddleware::view', function () use ($response) {
-            $fileTime = Carbon::createFromTimestamp(Cache::remember(self::class, 10, function () {
+            $fileTime = Carbon::createFromTimestamp(Cache::remember(self::class, cache('misc.config.timeout', 0), function () {
                 return app('misc-debugbar')->measure('Getting File Time', function () {
                     return self::bladeFilesIn(self::paths())
                         ->map(function (SplFileInfo $fileInfo) {
@@ -141,47 +141,53 @@ class CacheableMiddleware
      */
     public static function params(SymfomyResponse $response): void
     {
-        $classes = [];
+        $updatedAt = null;
 
         $routeParams = request()->route()->signatureParameters(UrlRoutable::class);
-        foreach ($routeParams as $param) {
-            $class = '\\' . $param->getType()->getName();
-            if (!class_exists($class)) {
-                continue;
-            }
-
-            $classes[] = $class;
-        }
-
-        if (empty($classes)) {
-            app('misc-debugbar')->notice('No parameters found, checking middleware');
-
-            $controllerMiddleware = request()->route()->controllerMiddleware();
-            foreach ($controllerMiddleware as $middleware) {
-                if (!str_starts_with($middleware, 'can:')) {
-                    continue;
-                }
-                $class = substr($middleware, strrpos($middleware, ',') + 1);
-                if (!class_exists($class)) {
-                    continue;
-                }
-                $classes[] = $class;
-            }
-        }
-
         /** @var ReflectionParameter $param */
-        foreach ($classes as $class) {
+        foreach ($routeParams as $param) {
+
+            /** @var Model $model */
+            $model = request()->route()->parameter($param->name);
+
+            try {
+                $classUpdatedAt = $model->getAttribute('updated_at');
+                app('misc-debugbar')->debug($model::class . ' last modified: ' . $classUpdatedAt);
+                if (is_null($updatedAt) || $classUpdatedAt->greaterThan($classUpdatedAt)) {
+                    $updatedAt = $classUpdatedAt;
+                }
+            } catch (Exception) {
+            }
+        }
+
+        app('misc-debugbar')->notice('No parameters found, checking middleware');
+
+        $controllerMiddleware = request()->route()->controllerMiddleware();
+        foreach ($controllerMiddleware as $middleware) {
+            if (!str_starts_with($middleware, 'can:')) {
+                continue;
+            }
+            $class = substr($middleware, strrpos($middleware, ',') + 1);
             if (!class_exists($class)) {
                 continue;
             }
-            $model = new $class;
-            $updatedAt = Carbon::parse($model->max('updated_at'));
 
-            app('misc-debugbar')->debug($class . ' last modified: ' . $updatedAt);
-            $options = ['last_modified' => $updatedAt];
-            $response->setCache($options);
-            break;
+            $classUpdatedAt = Carbon::parse(Cache::remember($class . '.max', cache('misc.config.timeout', 0), function () use ($class) {
+                return $class::max('updated_at');
+            }));
+
+            app('misc-debugbar')->debug($class . ' last modified: ' . $classUpdatedAt);
+            if (is_null($updatedAt) || $classUpdatedAt->greaterThan($updatedAt)) {
+                $updatedAt = $classUpdatedAt;
+            }
         }
+
+        if (is_null($updatedAt)) {
+            return;
+        }
+
+        $options = ['last_modified' => $updatedAt];
+        $response->setCache($options);
     }
 
     /**
