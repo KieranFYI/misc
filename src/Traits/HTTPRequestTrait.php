@@ -7,24 +7,41 @@ use GuzzleHttp\RequestOptions;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
-use KieranFYI\Misc\Helpers\UserAgent;
 
 trait HTTPRequestTrait
 {
     /**
-     * @var UserAgent|null
-     */
-    private static ?UserAgent $userAgent = null;
-
-    /**
      * @var string|null
      */
-    private ?string $customUserAgent = null;
+    private ?string $userAgent = null;
 
     /**
      * @var string|null
      */
     private ?string $auth = null;
+
+    /**
+     * @var int
+     */
+    private int $timeout = 20;
+
+    /**
+     * @param string $userAgent
+     */
+    public function userAgent(string $userAgent): static
+    {
+        $this->userAgent = $userAgent;
+        return $this;
+    }
+
+    /**
+     * @param int $timeout
+     */
+    public function timeout(int $timeout): static
+    {
+        $this->timeout = $timeout;
+        return $this;
+    }
 
     /**
      * @return bool
@@ -41,14 +58,13 @@ trait HTTPRequestTrait
      */
     private function client(bool $json = true): PendingRequest
     {
-        if (is_null(static::$userAgent)) {
-            static::$userAgent = new UserAgent();
-        }
-
         $headers = [
-            'User-Agent' => $customUserAgent ?? static::$userAgent->generate(),
             'accept-encoding' => 'gzip, deflate',
         ];
+
+        if (is_null($this->userAgent)) {
+            $headers['User-Agent'] = $this->userAgent;
+        }
 
         if ($json) {
             $headers['Accept'] = 'application/json';
@@ -59,7 +75,8 @@ trait HTTPRequestTrait
         }
 
         return Http::withOptions([
-            RequestOptions::TIMEOUT => 20,
+            RequestOptions::TIMEOUT => $this->timeout,
+            RequestOptions::CONNECT_TIMEOUT => $this->timeout,
             RequestOptions::ALLOW_REDIRECTS => true,
             RequestOptions::VERIFY => false,
             'curl' => [
@@ -112,6 +129,4 @@ trait HTTPRequestTrait
     {
         return $this->client(false)->send('GET', $url, ['sink' => $file]);
     }
-
-
 }
