@@ -29,4 +29,14 @@ trait HasKeyTrait
             $model->key = (string)Str::uuid();
         });
     }
+    
+    /**
+     * Get the route key for the model.
+     *
+     * @return string
+     */
+    public function getRouteKeyName()
+    {
+        return 'key';
+    }
 }
