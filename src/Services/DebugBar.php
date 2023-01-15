@@ -2,22 +2,20 @@
 
 namespace KieranFYI\Misc\Services;
 
-use Barryvdh\Debugbar\LaravelDebugbar;
 use Closure;
-use DebugBar\DataCollector\DataCollectorInterface;
 use Exception;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * @method static LaravelDebugbar addCollector(DataCollectorInterface $collector)
+ * @method static Barryvdh\Debugbar\LaravelDebugbar addCollector(\DebugBar\DataCollector\DataCollectorInterface $collector)
  * @method static void addMessage(mixed $message, string $label = 'info')
  * @method static void alert(mixed $message)
  * @method static void critical(mixed $message)
  * @method static void debug(mixed $message)
  * @method static void emergency(mixed $message)
  * @method static void error(mixed $message)
- * @method static LaravelDebugbar getCollector(string $name)
+ * @method static Barryvdh\Debugbar\LaravelDebugbar getCollector(string $name)
  * @method static bool hasCollector(string $name)
  * @method static void info(mixed $message)
  * @method static void log(mixed $message)
@@ -89,6 +87,9 @@ class DebugBar extends ServiceProvider
         }
 
         try {
+            if (method_exists($instance, $name)) {
+                return call_user_func([$instance, $name], ...$arguments);
+            }
             return $instance->__call($name, $arguments);
         } catch (Exception) {
         }
