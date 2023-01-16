@@ -26,7 +26,7 @@ class MiscPackageServiceProvider extends ServiceProvider
 
         $this->publishes([
             $root . '/config/misc.php' => config_path('misc.php'),
-        ], ['misc', 'misc-config']);
+        ], ['misc', 'misc-config', 'config']);
 
         $this->mergeConfigFrom($root . '/config/misc.php', 'misc');
 
