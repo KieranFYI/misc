@@ -37,7 +37,7 @@ trait ImmutableTrait
      */
     public function __set($key, $value)
     {
-        if ($this->exists && !in_array($key, $this->whitelist())) {
+        if ($this->exists && !in_array($key, $this->whitelist()) && is_null($this->getOriginal($key))) {
             throw new ImmutableModelException();
         }
 
