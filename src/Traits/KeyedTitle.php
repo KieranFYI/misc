@@ -8,6 +8,7 @@ use TypeError;
 
 /**
  * @property string $title
+ * @property string $title_key
  * @property string $title_detailed
  * @mixin Model
  */
@@ -22,12 +23,12 @@ trait KeyedTitle
      */
     public function getTitleAttribute(): string
     {
-        if (property_exists($this, 'title')) {
+        if (property_exists($this, 'title_key')) {
             if (!is_string($this->title)) {
-                throw new TypeError(self::class . '::getTitleAttribute(): Property ($title) must be of type string');
+                throw new TypeError(self::class . '::getTitleAttribute(): Property ($title_key) must be of type string');
             }
 
-            return $this->title;
+            return $this->getAttribute($this->title_key);
         }
         return $this->getKey();
     }
@@ -41,16 +42,16 @@ trait KeyedTitle
         $parts = explode('\\', static::class);
         $className = array_pop($parts);
 
-        $value = $this->getAttribute($this->title());
+        $title = $this->title;
 
-        if (is_null($value)) {
-            return null;
+        if (is_null($title)) {
+            $title = $this->getKey();
         }
 
         if (!is_null($this->deleted_at)) {
-            return $className . ': ' . $value . ' (Soft Deleted)';
+            return $className . ': ' . $title . ' (Soft Deleted)';
         }
 
-        return $className . ': ' . $value;
+        return $className . ': ' . $title;
     }
 }
