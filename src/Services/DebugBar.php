@@ -4,6 +4,7 @@ namespace KieranFYI\Misc\Services;
 
 use Closure;
 use Exception;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 
@@ -47,6 +48,7 @@ class DebugBar extends ServiceProvider
 
     /**
      * @return mixed
+     * @throws BindingResolutionException
      */
     public function instance(): mixed
     {

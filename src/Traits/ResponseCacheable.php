@@ -22,29 +22,39 @@ trait ResponseCacheable
         $callables = CacheableMiddleware::callables();
         $callables[] = function (Response $response) use ($value) {
             if (is_null($value)) {
-                return;
+                return null;
             }
-            $options = ['last_modified' => $value];
+
             app('misc-debugbar')->debug('User Provided: ' . $value);
-            $response->setCache($options);
+            return $value;
         };
 
         $response = response()
             ->make();
         $request = Request::createFromGlobals();
         foreach ($callables as $callable) {
-            $callable($response);
+            $value = $callable($response);
+            if (is_null($value)) {
+                continue;
+            }
+
+            $options = ['last_modified' => $value];
+            $response->setCache($options);
 
             if ($response->isNotModified($request)) {
                 app('misc-debugbar')->debug('Callable Response not Modified found');
-                CacheableMiddleware::$timestamp = $response->getLastModified();
-                abort(304);
+                CacheableMiddleware::$timestamp = $value;
+                if ($throw) {
+                    abort(304);
+                }
+                return true;
             }
 
-            if (is_null(CacheableMiddleware::$timestamp) && CacheableMiddleware::$timestamp < $response->getLastModified()) {
-                CacheableMiddleware::$timestamp = $response->getLastModified();
+            if (is_null(CacheableMiddleware::$timestamp) && CacheableMiddleware::$timestamp < $value) {
+                CacheableMiddleware::$timestamp = $value;
             }
         }
-        return true;
+
+        return false;
     }
 }

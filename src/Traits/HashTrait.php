@@ -11,21 +11,37 @@ use Illuminate\Database\Eloquent\Model;
 trait HashTrait
 {
     /**
-     * @return string
-     * @throws Exception
+     * @return void
      */
-    public static function generateHash(): string
+    public function initializeHashTrait(): void
     {
-        for ($i = 0; $i < 20; $i++) {
-            $hash = bin2hex(random_bytes(5));
-            if (self::where('hash', $hash)->exists()) {
-                continue;
+        array_push($this->fillable, 'hash');
+    }
+
+    /**
+     * @return void
+     */
+    protected static function bootHashTrait(): void
+    {
+        static::creating(function (Model $model) {
+            for ($i = 0; $i < 20; $i++) {
+                $hash = bin2hex(random_bytes(5));
+
+                if (self::where('hash', $hash)->exists()) {
+                    // @codeCoverageIgnoreStart
+                    continue;
+                    // @codeCoverageIgnoreEnd
+                }
+
+                /** @var static $model */
+                $model->setAttribute('hash', $hash);
+                return;
             }
 
-            return $hash;
-        }
-
-        throw new Exception('Unable to generate unique Hash');
+            // @codeCoverageIgnoreStart
+            throw new Exception('Unable to generate unique Hash');
+            // @codeCoverageIgnoreEnd
+        });
     }
 
     /**
