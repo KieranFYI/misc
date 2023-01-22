@@ -5,6 +5,7 @@ namespace KieranFYI\Misc\Http\Middleware;
 use Carbon\Carbon;
 use Closure;
 use DateTimeInterface;
+use Exception;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Routing\UrlRoutable;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,7 @@ use ReflectionParameter;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 use Symfony\Component\HttpFoundation\Response as SymfomyResponse;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class CacheableMiddleware
 {
@@ -67,12 +69,20 @@ class CacheableMiddleware
      * @param Request $request
      * @param Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
      * @param string|null ...$guards
-     * @return Response|RedirectResponse
+     * @return Response
+     * @throws BindingResolutionException
      */
     public function handle(Request $request, Closure $next, ...$guards)
     {
         /** @var SymfomyResponse $response */
-        $response = $next($request);
+        try {
+            $response = $next($request);
+        } catch (HttpException $e) {
+            if ($e->getStatusCode() !== 304 || is_null(static::$timestamp)) {
+                throw $e;
+            }
+            return response()->make()->setCache(['last_modified' => static::$timestamp]);
+        }
 
         app('misc-debugbar')->info('Cache: ' . (config('misc.cache.enabled') ? 'Enabled' : 'Disabled'));
 
@@ -83,39 +93,32 @@ class CacheableMiddleware
         ) {
             app('misc-debugbar')->notice('Setting last modified: ' . static::$timestamp->format('Y-m-d H:i:s'));
             $response->setCache(['last_modified' => static::$timestamp]);
-
-            app('misc-debugbar')->info('Response Modified: ' . ($response->isNotModified($request) ? 'Yes' : 'No'));
-            if ($response->getStatusCode() === 304 && $response->isNotModified($request)) {
-                $response = response()->make()->setCache(['last_modified' => static::$timestamp]);
-            }
         }
         return $response;
     }
 
     /**
-     * @param SymfomyResponse $response
-     * @throws BindingResolutionException
+     * @return Carbon|null
      */
-    public static function user(SymfomyResponse $response): void
+    public static function user(): ?Carbon
     {
         $user = Auth::user();
         if (!is_a($user, Model::class, true)) {
-            return;
+            return null;
         }
 
         /** @var Carbon $updatedAt */
         $updatedAt = $user->updated_at ?? null;
         app('misc-debugbar')->debug('User last modified: ' . $updatedAt);
-        $options = ['last_modified' => $updatedAt];
-        $response->setCache($options);
+        return $updatedAt;
     }
 
     /**
-     * @param SymfomyResponse $response
+     * @return Carbon
      */
-    public static function cacheView(SymfomyResponse $response): void
+    public static function cacheView(): Carbon
     {
-        app('misc-debugbar')->measure('CacheMiddleware::view', function () use ($response) {
+        return app('misc-debugbar')->measure('CacheMiddleware::view', function () {
             $fileTime = Carbon::createFromTimestamp(Cache::remember(self::class, cache('misc.config.timeout', 0), function () {
                 return app('misc-debugbar')->measure('Getting File Time', function () {
                     return self::bladeFilesIn(self::paths())
@@ -127,28 +130,29 @@ class CacheableMiddleware
             }));
 
 
-            if (!isset(self::$options['cache'])) {
-                app('misc-debugbar')->debug('View last modified: ' . $fileTime);
-            }
-            $options = ['last_modified' => $fileTime];
-            $response->setCache($options);
+            app('misc-debugbar')->debug('View last modified: ' . $fileTime);
+            return $fileTime;
         });
     }
 
 
     /**
-     * @param SymfomyResponse $response
+     * @return Carbon|null
      */
-    public static function params(SymfomyResponse $response): void
+    public static function params(): ?Carbon
     {
-        $updatedAt = null;
+        $route = request()->route();
+        if (is_null($route)) {
+            return null;
+        }
 
-        $routeParams = request()->route()->signatureParameters(UrlRoutable::class);
+        $updatedAt = null;
+        $routeParams = $route->signatureParameters(UrlRoutable::class);
         /** @var ReflectionParameter $param */
         foreach ($routeParams as $param) {
 
             /** @var Model $model */
-            $model = request()->route()->parameter($param->name);
+            $model = $route->parameter($param->name);
 
             try {
                 $classUpdatedAt = $model->getAttribute('updated_at');
@@ -182,12 +186,7 @@ class CacheableMiddleware
             }
         }
 
-        if (is_null($updatedAt)) {
-            return;
-        }
-
-        $options = ['last_modified' => $updatedAt];
-        $response->setCache($options);
+        return $updatedAt;
     }
 
     /**
@@ -207,18 +206,24 @@ class CacheableMiddleware
             $cleanPaths[] = $path;
         }
 
-        return collect(
+        $files = collect(
             Finder::create()
                 ->in($cleanPaths)
                 ->exclude('vendor')
                 ->name('*.blade.php')
                 ->files()
-        )->merge(collect(
-            Finder::create()
-                ->in(base_path('vendor/composer'))
-                ->name('autoload_*.php')
-                ->files()
-        ));
+        );
+
+        $composerPath = base_path('vendor/composer');
+        if (file_exists($composerPath)) {
+            $files = $files->merge(collect(
+                Finder::create()
+                    ->in($composerPath)
+                    ->name('autoload_*.php')
+                    ->files()
+            ));
+        }
+        return $files;
     }
 
     /**
