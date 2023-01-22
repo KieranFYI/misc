@@ -3,7 +3,6 @@
 namespace KieranFYI\Misc\Traits;
 
 use Illuminate\Database\Eloquent\Model;
-use KieranFYI\Logging\Traits\HasLoggingTrait;
 use TypeError;
 
 /**
@@ -14,8 +13,6 @@ use TypeError;
  */
 trait KeyedTitle
 {
-    use HasLoggingTrait;
-
     /**
      * Get the policies defined on the provider.
      *
@@ -23,14 +20,20 @@ trait KeyedTitle
      */
     public function getTitleAttribute(): string
     {
+        $title = null;
         if (property_exists($this, 'title_key')) {
-            if (!is_string($this->title)) {
+            if (!is_string($this->title_key)) {
                 throw new TypeError(self::class . '::getTitleAttribute(): Property ($title_key) must be of type string');
             }
 
-            return $this->getAttribute($this->title_key);
+            $title =  $this->getAttribute($this->title_key);
         }
-        return $this->getKey();
+
+        if (is_null($title)) {
+            $title = $this->getKey();
+        }
+
+        return $title ?? 'Unknown';
     }
 
 
@@ -43,10 +46,6 @@ trait KeyedTitle
         $className = array_pop($parts);
 
         $title = $this->title;
-
-        if (is_null($title)) {
-            $title = $this->getKey();
-        }
 
         if (!is_null($this->deleted_at)) {
             return $className . ': ' . $title . ' (Soft Deleted)';

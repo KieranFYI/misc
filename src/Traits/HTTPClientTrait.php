@@ -5,7 +5,6 @@ namespace KieranFYI\Misc\Traits;
 use Exception;
 use GuzzleHttp\RequestOptions;
 use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 trait HTTPClientTrait

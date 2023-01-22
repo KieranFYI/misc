@@ -16,7 +16,7 @@ trait HTTPRequestTrait
      * @return Response
      * @throws Exception
      */
-    protected function get(string $url, $query = null): Response
+    public function get(string $url, $query = null): Response
     {
         return $this->client()->get($url, $query);
     }
@@ -28,14 +28,10 @@ trait HTTPRequestTrait
      * @return Response
      * @throws Exception
      */
-    protected function post(string $url, array $data = [], bool $json = true): Response
+    public function post(string $url, array $data = [], bool $json = true): Response
     {
-        $client = $this->client();
-        if ($json) {
-            $client->bodyFormat(RequestOptions::JSON);
-        } else {
-            $client->bodyFormat(RequestOptions::FORM_PARAMS);
-        }
+        $client = $this->client($json);
+        $client->bodyFormat($json ? RequestOptions::JSON : RequestOptions::FORM_PARAMS);
         return $client->post($url, $data);
     }
 
@@ -45,7 +41,7 @@ trait HTTPRequestTrait
      * @return Response
      * @throws Exception
      */
-    protected function download(string $url, string $file): Response
+    public function download(string $url, string $file): Response
     {
         return $this->client(false)->send('GET', $url, ['sink' => $file]);
     }

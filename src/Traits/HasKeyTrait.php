@@ -25,8 +25,8 @@ trait HasKeyTrait
      */
     protected static function bootHasKeyTrait(): void
     {
-        static::creating(function ($model) {
-            $model->key = (string)Str::uuid();
+        static::creating(function (Model $model) {
+            $model->setAttribute('key', (string)Str::uuid());
         });
     }
     
