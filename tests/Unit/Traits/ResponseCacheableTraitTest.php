@@ -45,12 +45,11 @@ class ResponseCacheableTraitTest extends TestCase
     public function testCachedWithTimestamp()
     {
         Config::set('misc.cache.enabled', true);
-        $timestamp = Carbon::now()
-            ->micro(0);
+        $timestamp = Carbon::now();
 
         $this->assertFalse($this->cached($timestamp));
         $this->assertNotNull(CacheableMiddleware::$timestamp);
-        $this->assertEquals($timestamp, CacheableMiddleware::$timestamp);
+        $this->assertTrue($timestamp->equalTo(CacheableMiddleware::$timestamp));
     }
 
     /**
@@ -58,27 +57,25 @@ class ResponseCacheableTraitTest extends TestCase
      */
     public function testCachedWithTimestampAndRequestIsNotModified()
     {
-        $timestamp = Carbon::now()
-            ->micro(0);
-        $_SERVER['HTTP_If-Modified-Since'] = $timestamp->toString();
-        Config::set('misc.cache.enabled', true);
-
-        $this->assertTrue($this->cached($timestamp, false));
-        $this->assertNotNull(CacheableMiddleware::$timestamp);
-        $this->assertEquals($timestamp, CacheableMiddleware::$timestamp);
-    }
-
-    /**
-     * @throws Throwable
-     */
-    public function testCachedWithTimestampAndRequestIsNotModifiedThrow()
-    {
-        $timestamp = Carbon::now()
-            ->micro(0);
+        $timestamp = Carbon::now();
         $_SERVER['HTTP_If-Modified-Since'] = $timestamp->toString();
         Config::set('misc.cache.enabled', true);
 
         $this->expectException(HttpException::class);
         $this->cached($timestamp);
+    }
+
+    /**
+     * @throws Throwable
+     */
+    public function testCachedWithTimestampAndRequestIsNotModifiedNoThrow()
+    {
+        $timestamp = Carbon::now();
+        $_SERVER['HTTP_If-Modified-Since'] = $timestamp->toString();
+        Config::set('misc.cache.enabled', true);
+
+        $this->assertTrue($this->cached($timestamp, false));
+        $this->assertNotNull(CacheableMiddleware::$timestamp);
+        $this->assertTrue($timestamp->equalTo(CacheableMiddleware::$timestamp));
     }
 }

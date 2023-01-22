@@ -20,7 +20,7 @@ trait ResponseCacheable
         }
 
         $callables = CacheableMiddleware::callables();
-        $callables[] = function (Response $response) use ($value) {
+        $callables[] = function () use ($value) {
             if (is_null($value)) {
                 return null;
             }
@@ -33,10 +33,11 @@ trait ResponseCacheable
             ->make();
         $request = Request::createFromGlobals();
         foreach ($callables as $callable) {
-            $value = $callable($response);
+            $value = $callable();
             if (is_null($value)) {
                 continue;
             }
+            /** @var Carbon $value */
 
             $options = ['last_modified' => $value];
             $response->setCache($options);
@@ -50,7 +51,7 @@ trait ResponseCacheable
                 return true;
             }
 
-            if (is_null(CacheableMiddleware::$timestamp) && CacheableMiddleware::$timestamp < $value) {
+            if (is_null(CacheableMiddleware::$timestamp) || $value->greaterThan(CacheableMiddleware::$timestamp)) {
                 CacheableMiddleware::$timestamp = $value;
             }
         }
