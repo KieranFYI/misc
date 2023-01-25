@@ -1,6 +1,6 @@
 # Add 'test' label to any tests changes
 tests:
-  - any: [ 'tests/**/*', '.phpcensor/**/*' ]
+  - any: [ 'tests/**/*' ]
 
 # Add 'frontend` label to any resources changes
 frontend:
