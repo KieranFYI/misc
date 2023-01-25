@@ -31,11 +31,11 @@ class MiscPackageServiceProvider extends ServiceProvider
         $this->mergeConfigFrom($root . '/config/misc.php', 'misc');
 
 
-        if (!app()->runningInConsole()) {
-            CacheableMiddleware::checking(function (Response $response) {
-                CacheableMiddleware::user($response);
-                CacheableMiddleware::cacheView($response);
-                CacheableMiddleware::params($response);
+        if (!app()->runningInConsole() || app()->runningUnitTests()) {
+            CacheableMiddleware::checking(function () {
+                CacheableMiddleware::user();
+                CacheableMiddleware::cacheView();
+                CacheableMiddleware::params();
             });
         }
     }

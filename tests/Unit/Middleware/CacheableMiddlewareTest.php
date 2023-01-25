@@ -35,7 +35,6 @@ class CacheableMiddlewareTest extends TestCase
 
     public function testCallables()
     {
-        $this->assertEmpty(CacheableMiddleware::callables());
         CacheableMiddleware::checking(function () {
             $this->assertTrue(true);
             return null;
@@ -45,7 +44,7 @@ class CacheableMiddlewareTest extends TestCase
             $callable();
         }
 
-        $this->assertEquals(2, $this->getCount());
+        $this->assertEquals(1, $this->getCount());
     }
 
     public function testCheck()
