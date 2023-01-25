@@ -68,13 +68,17 @@ class KeyedTitleTraitTest extends TestCase
         $model->save();
         $this->assertIsString($model->getTitleDetailedAttribute());
         $this->assertIsString($model->title_detailed);
+        $this->assertEquals('KeyedTitleModel: 1', $model->getTitleDetailedAttribute());
     }
 
+    /**
+     * @depends testGetTitleDetailedAttribute
+     */
     public function testGetTitleDetailedAttributeDeleted()
     {
         $model = new KeyedTitleModel();
         $model->save();
         $model->delete();
-        $this->assertStringEndsWith('(Soft Deleted)', $model->getTitleDetailedAttribute());
+        $this->assertEquals('KeyedTitleModel: 1 (Soft Deleted)', $model->getTitleDetailedAttribute());
     }
 }
