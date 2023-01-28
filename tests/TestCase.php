@@ -2,6 +2,7 @@
 
 namespace KieranFYI\Tests\Misc;
 
+use Barryvdh\Debugbar\ServiceProvider;
 use Illuminate\Foundation\Application;
 use KieranFYI\Misc\Providers\MiscPackageServiceProvider;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
