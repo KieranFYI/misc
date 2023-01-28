@@ -67,7 +67,7 @@ class CacheableMiddleware
      * Handle an incoming request.
      *
      * @param Request $request
-     * @param Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
+     * @param Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse) $next
      * @param string|null ...$guards
      * @return Response
      * @throws BindingResolutionException
@@ -121,11 +121,13 @@ class CacheableMiddleware
         return app('misc-debugbar')->measure('CacheMiddleware::view', function () {
             $fileTime = Carbon::createFromTimestamp(Cache::remember(self::class, cache('misc.config.timeout', 0), function () {
                 return app('misc-debugbar')->measure('Getting File Time', function () {
-                    return self::bladeFilesIn(self::paths())
-                        ->map(function (SplFileInfo $fileInfo) {
-                            return $fileInfo->getMTime();
-                        })
-                        ->max();
+                    return
+                        self::bladeFilesIn(self::paths(), '*.blade.php', ['vendor'])
+                            ->merge(self::bladeFilesIn([base_path('vendor/composer')], 'autoload_*.php'))
+                            ->map(function (SplFileInfo $fileInfo) {
+                                return $fileInfo->getMTime();
+                            })
+                            ->max();
                 });
             }));
 
@@ -141,40 +143,66 @@ class CacheableMiddleware
      */
     public static function params(): ?Carbon
     {
+        $updatedAt = static::checkSignature();
+        if (!is_null($updatedAt)) {
+            return $updatedAt;
+        }
+
+        app('misc-debugbar')->notice('No parameters found, checking middleware');
+        return static::checkMiddleware();
+    }
+
+    /**
+     * @return Carbon|null
+     */
+    public static function checkSignature(): ?Carbon
+    {
+        $route = request()->route();
+
+        if (is_null($route)) {
+            return null;
+        }
+
+        $updatedAt = null;
+        $routeParams = $route->signatureParameters(Model::class);
+
+        /** @var ReflectionParameter $param */
+        foreach ($routeParams as $param) {
+            $type = $param->getType()->getName();
+
+            /** @var Model $model */
+            $model = $type::setEagerLoads([])
+                ->select('updated_at')
+                ->find($route->parameter($param->name));
+
+            $classUpdatedAt = $model->getAttribute('updated_at');
+            app('misc-debugbar')->debug($model::class . ' last modified: ' . $classUpdatedAt);
+            if (is_null($updatedAt) || $classUpdatedAt->greaterThan($classUpdatedAt)) {
+                $updatedAt = $classUpdatedAt;
+            }
+        }
+
+        return $updatedAt;
+    }
+
+    /**
+     * @return Carbon|null
+     */
+    public static function checkMiddleware(): ?Carbon
+    {
         $route = request()->route();
         if (is_null($route)) {
             return null;
         }
 
         $updatedAt = null;
-        $routeParams = $route->signatureParameters(UrlRoutable::class);
-        /** @var ReflectionParameter $param */
-        foreach ($routeParams as $param) {
+        $controllerMiddleware = $route->controllerMiddleware();
 
-            /** @var Model $model */
-            $model = $route->parameter($param->name);
-
-            try {
-                $classUpdatedAt = $model->getAttribute('updated_at');
-                app('misc-debugbar')->debug($model::class . ' last modified: ' . $classUpdatedAt);
-                if (is_null($updatedAt) || $classUpdatedAt->greaterThan($classUpdatedAt)) {
-                    $updatedAt = $classUpdatedAt;
-                }
-            } catch (Exception) {
-            }
-        }
-
-        app('misc-debugbar')->notice('No parameters found, checking middleware');
-
-        $controllerMiddleware = request()->route()->controllerMiddleware();
         foreach ($controllerMiddleware as $middleware) {
             if (!str_starts_with($middleware, 'can:')) {
                 continue;
             }
             $class = substr($middleware, strrpos($middleware, ',') + 1);
-            if (!class_exists($class)) {
-                continue;
-            }
 
             $classUpdatedAt = Carbon::parse(Cache::remember($class . '.max', cache('misc.config.timeout', 0), function () use ($class) {
                 return $class::max('updated_at');
@@ -193,9 +221,11 @@ class CacheableMiddleware
      * Get the Blade files in the given path.
      *
      * @param array $paths
+     * @param string $pattern
+     * @param array $exclude
      * @return Collection
      */
-    protected static function bladeFilesIn(array $paths): Collection
+    protected static function bladeFilesIn(array $paths, string $pattern, array $exclude = []): Collection
     {
         $cleanPaths = [];
 
@@ -206,28 +236,21 @@ class CacheableMiddleware
             $cleanPaths[] = $path;
         }
 
-        $files = collect(
+        if (empty($cleanPaths)) {
+            return collect();
+        }
+
+        return collect(
             Finder::create()
                 ->in($cleanPaths)
-                ->exclude('vendor')
-                ->name('*.blade.php')
+                ->exclude($exclude)
+                ->name($pattern)
                 ->files()
         );
-
-        $composerPath = base_path('vendor/composer');
-        if (file_exists($composerPath)) {
-            $files = $files->merge(collect(
-                Finder::create()
-                    ->in($composerPath)
-                    ->name('autoload_*.php')
-                    ->files()
-            ));
-        }
-        return $files;
     }
 
     /**
-     * Get all of the possible view paths.
+     * Get all the possible view paths.
      *
      * @return array
      */

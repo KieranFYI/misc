@@ -33,9 +33,13 @@ class MiscPackageServiceProvider extends ServiceProvider
 
         if (!app()->runningInConsole() || app()->runningUnitTests()) {
             CacheableMiddleware::checking(function () {
-                CacheableMiddleware::user();
-                CacheableMiddleware::cacheView();
-                CacheableMiddleware::params();
+                return CacheableMiddleware::user();
+            });
+            CacheableMiddleware::checking(function () {
+                return CacheableMiddleware::cacheView();
+            });
+            CacheableMiddleware::checking(function () {
+                return CacheableMiddleware::params();
             });
         }
     }
