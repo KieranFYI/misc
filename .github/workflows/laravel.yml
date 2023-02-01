@@ -19,7 +19,7 @@ jobs:
       - name: Install Dependencies
         run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist --ignore-platform-reqs
       - name: Execute tests (Unit and Feature tests) via PHPUnit
-        run: php -d xdebug.mode=coverage ./vendor/bin/phpunit tests --coverage-html ./reports/
+        run: php -d xdebug.mode=coverage ./vendor/bin/phpunit tests --coverage-xml ./reports/
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
