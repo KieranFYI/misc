@@ -13,6 +13,11 @@ use TypeError;
  */
 trait KeyedTitle
 {
+    public function initializeKeyedTitle(): void
+    {
+        array_push($this->appends, 'title', 'title_detailed');
+    }
+
     /**
      * Get the policies defined on the provider.
      *

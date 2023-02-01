@@ -67,7 +67,7 @@ trait HTTPClientTrait
      * @return PendingRequest
      * @throws Exception
      */
-    private function client(bool $json = true): PendingRequest
+    private function client(bool $json = true, array $options = []): PendingRequest
     {
         $headers = [
             'accept-encoding' => 'gzip, deflate',
@@ -85,11 +85,12 @@ trait HTTPClientTrait
             $headers['Authorization'] = $this->auth;
         }
 
-        return Http::withOptions([
+        return Http::withOptions(array_merge($options, [
             RequestOptions::TIMEOUT => $this->timeout,
             RequestOptions::CONNECT_TIMEOUT => $this->timeout,
             RequestOptions::ALLOW_REDIRECTS => true,
-            RequestOptions::HEADERS => $headers
-        ]);
+            RequestOptions::HEADERS => $headers,
+            RequestOptions::HTTP_ERRORS => false,
+        ]));
     }
 }
