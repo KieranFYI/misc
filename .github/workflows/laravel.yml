@@ -12,18 +12,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: shivammathur/setup-php@15c43e89cdef867065b0213be354c2841860869e
+      - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.1'
           coverage: xdebug
       - uses: actions/checkout@v2
       - name: Install Dependencies
         run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist --ignore-platform-reqs
+
       - name: Execute tests (Unit and Feature tests) via PHPUnit
-        run: php -d xdebug.mode=coverage ./vendor/bin/phpunit tests --coverage-xml ./reports/
+        run: phpdbg -qrr ./vendor/phpunit/phpunit/phpunit -v --colors=never --stderr --coverage-clover=./coverage.xml
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./reports/index.xml
+          files: ./coverage.xml
           verbose: true
