@@ -15,7 +15,7 @@ trait HashTrait
      */
     public function initializeHashTrait(): void
     {
-        array_push($this->fillable, 'hash');
+        $this->fillable[] = 'hash';
     }
 
     /**
@@ -24,8 +24,9 @@ trait HashTrait
     protected static function bootHashTrait(): void
     {
         static::creating(function (Model $model) {
+            $length = 5;
             for ($i = 0; $i < 20; $i++) {
-                $hash = bin2hex(random_bytes(5));
+                $hash = bin2hex(random_bytes($length + $i));
 
                 if (self::where('hash', $hash)->exists()) {
                     // @codeCoverageIgnoreStart
