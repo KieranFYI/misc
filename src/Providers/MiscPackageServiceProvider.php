@@ -4,10 +4,9 @@ namespace KieranFYI\Misc\Providers;
 
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
-use KieranFYI\Admin\Services\AdminService;
+use KieranFYI\Misc\Facades\Cacheable;
 use KieranFYI\Misc\Http\Middleware\CacheableMiddleware;
 use KieranFYI\Misc\Services\DebugBar;
-use Symfony\Component\HttpFoundation\Response;
 
 class MiscPackageServiceProvider extends ServiceProvider
 {
@@ -29,18 +28,5 @@ class MiscPackageServiceProvider extends ServiceProvider
         ], ['misc', 'misc-config', 'config']);
 
         $this->mergeConfigFrom($root . '/config/misc.php', 'misc');
-
-
-        if (!app()->runningInConsole() || app()->runningUnitTests()) {
-            CacheableMiddleware::checking(function () {
-                return CacheableMiddleware::user();
-            });
-            CacheableMiddleware::checking(function () {
-                return CacheableMiddleware::cacheView();
-            });
-            CacheableMiddleware::checking(function () {
-                return CacheableMiddleware::params();
-            });
-        }
     }
 }
