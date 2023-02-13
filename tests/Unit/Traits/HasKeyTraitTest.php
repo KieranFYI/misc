@@ -3,8 +3,11 @@
 namespace KieranFYI\Tests\Misc\Unit\Traits;
 
 use Illuminate\Support\Facades\Schema;
-use KieranFYI\Tests\Misc\Models\HasKeyTraitModel;
+use KieranFYI\Tests\Misc\Models\HasKeyTrait\HasKeyTraitCustomModel;
+use KieranFYI\Tests\Misc\Models\HasKeyTrait\HasKeyTraitInvalidModel;
+use KieranFYI\Tests\Misc\Models\HasKeyTrait\HasKeyTraitModel;
 use KieranFYI\Tests\Misc\TestCase;
+use TypeError;
 
 class HasKeyTraitTest extends TestCase
 {
@@ -36,6 +39,24 @@ class HasKeyTraitTest extends TestCase
     {
         $model = HasKeyTraitModel::create();
         $this->assertIsString($model->key);
+    }
+
+    public function testKeyColumn()
+    {
+        $model = new HasKeyTraitModel();
+        $this->assertEquals('key', $model->keyColumn());
+    }
+
+    public function testKeyColumnInvalid()
+    {
+        $this->expectException(TypeError::class);
+        new HasKeyTraitInvalidModel();
+    }
+
+    public function testKeyColumnCustom()
+    {
+        $model = new HasKeyTraitCustomModel();
+        $this->assertEquals('test', $model->keyColumn());
     }
 
     public function testGetRouteKeyName()

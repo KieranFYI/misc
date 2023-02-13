@@ -4,8 +4,11 @@ namespace KieranFYI\Tests\Misc\Unit\Traits;
 
 use Exception;
 use Illuminate\Support\Facades\Schema;
-use KieranFYI\Tests\Misc\Models\HashTraitModel;
+use KieranFYI\Tests\Misc\Models\HashTrait\HashTraitCustomModel;
+use KieranFYI\Tests\Misc\Models\HashTrait\HashTraitModel;
+use KieranFYI\Tests\Misc\Models\HashTrait\HashTraitInvalidModel;
 use KieranFYI\Tests\Misc\TestCase;
+use TypeError;
 
 class HashTraitTest extends TestCase
 {
@@ -47,6 +50,24 @@ class HashTraitTest extends TestCase
     public function testGenerateHashCollision()
     {
         $this->markTestSkipped('Unable to reliably test collisions');
+    }
+
+    public function testHashColumn()
+    {
+        $model = new HashTraitModel();
+        $this->assertEquals('hash', $model->hashColumn());
+    }
+
+    public function testHashColumnInvalid()
+    {
+        $this->expectException(TypeError::class);
+        new HashTraitInvalidModel();
+    }
+
+    public function testHashColumnCustom()
+    {
+        $model = new HashTraitCustomModel();
+        $this->assertEquals('test', $model->hashColumn());
     }
 
     public function testGetRouteKeyName()

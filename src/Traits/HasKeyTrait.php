@@ -4,10 +4,11 @@ namespace KieranFYI\Misc\Traits;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use TypeError;
 
 /**
- * @property string $key
- * 
+ * @property string $key_column
+ *
  * @mixin Model
  */
 trait HasKeyTrait
@@ -15,21 +16,36 @@ trait HasKeyTrait
     /**
      * @return void
      */
-    public function initializeHasKeyTrait(): void
+    protected static function bootHasKeyTrait(): void
     {
-        array_push($this->fillable, 'key');
+        static::creating(function (Model $model) {
+            $model->setAttribute($model->keyColumn(), (string)Str::uuid());
+        });
     }
 
     /**
      * @return void
      */
-    protected static function bootHasKeyTrait(): void
+    public function initializeHasKeyTrait(): void
     {
-        static::creating(function (Model $model) {
-            $model->setAttribute('key', (string)Str::uuid());
-        });
+        array_push($this->fillable, $this->keyColumn());
     }
-    
+
+    /**     *
+     * @return string
+     */
+    public function keyColumn(): string
+    {
+        if (property_exists($this, 'key_column')) {
+            if (!is_string($this->key_column)) {
+                throw new TypeError(self::class . '::hashColumn(): Property ($hash_column) must be of type string');
+            }
+
+            return $this->key_column;
+        }
+        return 'key';
+    }
+
     /**
      * Get the route key for the model.
      *
@@ -37,6 +53,6 @@ trait HasKeyTrait
      */
     public function getRouteKeyName()
     {
-        return 'key';
+        return $this->keyColumn();
     }
 }
