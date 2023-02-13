@@ -1,6 +1,6 @@
 <?php
 
-namespace KieranFYI\Tests\Misc\Models;
+namespace KieranFYI\Tests\Misc\Models\HashTrait;
 
 use Illuminate\Database\Eloquent\Model;
 use KieranFYI\Misc\Traits\HashTrait;
